@@ -10,43 +10,11 @@ import (
     "strconv"
 )
 
-func loadConfig(configFile string) (float64, float64, string) {
-    file, err := os.Open(configFile)
-    if err != nil {
-        panic(err)
-    }
-    scanner := bufio.NewScanner(file)
-    scanner.Split(bufio.ScanLines);
-    var line string
-    var lat, lng float64
-    var timezone string
-    for scanner.Scan() {
-        line = scanner.Text()
-        line = strings.TrimSpace(line)
-        if !strings.Contains(line, "=") {
-            continue
-        }
-        kv := strings.Split(line, "=")
-        if (kv[0] == "timezone") {
-            timezone = kv[1]
-        }
-        if (kv[0] == "location") {
-            if !strings.Contains(kv[1], ",") {
-            fmt.Println("Invalid coordinates: " + kv[1])
-                continue
-            }
-            ll := strings.Split(kv[1], ",")
-            lat, _ = strconv.ParseFloat(ll[0], 32)
-            lng, _ = strconv.ParseFloat(ll[1], 32)
-        }
-    }
-    return lat, lng, timezone
-}
-
 
 func main() {
-    sunCronFilePath := "sun.cron"
     configFile := "/etc/suncron.conf"
+    sunCronFile := "/etc/suncron.cron"
+    cronFilePath := "/etc/cron.d/suncron"
 
     lat, lng, timezone := loadConfig(configFile)
 
@@ -64,7 +32,7 @@ func main() {
     fmt.Println("Sunrise: " + sunrise.In(tz).Format("15:04:05"))
     fmt.Println("Sunset: " + sunset.In(tz).Format("15:04:05"))
 
-    file, err := os.Open(sunCronFilePath)
+    file, err := os.Open(sunCronFile)
     if err != nil {
         fmt.Println(err)
     }
@@ -73,6 +41,8 @@ func main() {
 
     var hour int
     var minute int
+
+    var cronRecords []string
 
     for scanner.Scan() {
         line := scanner.Text()
@@ -122,8 +92,58 @@ func main() {
         }
         endTime = endTime.Add(time.Hour * time.Duration(hour * mod) + time.Minute * time.Duration(minute * mod))
 
-        fmt.Printf("%d %d %s %s\n", endTime.Minute(), endTime.Hour(), dmw, cmd)
+        cronRecords = append(cronRecords, fmt.Sprintf("%d %d %s %s\n", endTime.Minute(), endTime.Hour(), dmw, cmd))
     }
 
+    writeCron(cronFilePath, cronRecords)
+
     file.Close()
+}
+
+func writeCron(file string, records []string) {
+    // TODO: error handling
+    f, err := os.Create(file)
+    if err != nil {
+        fmt.Println(err)
+    }
+    for idx := range records {
+        _, err := f.WriteString(records[idx])
+        if err != nil {
+            fmt.Println(err)
+        }
+    }
+    f.Close()
+}
+
+func loadConfig(configFile string) (float64, float64, string) {
+    file, err := os.Open(configFile)
+    if err != nil {
+        panic(err)
+    }
+    scanner := bufio.NewScanner(file)
+    scanner.Split(bufio.ScanLines);
+    var line string
+    var lat, lng float64
+    var timezone string
+    for scanner.Scan() {
+        line = scanner.Text()
+        line = strings.TrimSpace(line)
+        if !strings.Contains(line, "=") {
+            continue
+        }
+        kv := strings.Split(line, "=")
+        if (kv[0] == "timezone") {
+            timezone = kv[1]
+        }
+        if (kv[0] == "location") {
+            if !strings.Contains(kv[1], ",") {
+            fmt.Println("Invalid coordinates: " + kv[1])
+                continue
+            }
+            ll := strings.Split(kv[1], ",")
+            lat, _ = strconv.ParseFloat(ll[0], 32)
+            lng, _ = strconv.ParseFloat(ll[1], 32)
+        }
+    }
+    return lat, lng, timezone
 }
