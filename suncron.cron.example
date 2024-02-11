@@ -1,0 +1,5 @@
+sunset ;        ; * * * ; date >> /tmp/suncron.log
+sunset ;  -03:30; * * * ; date >> /tmp/suncron.log
+sunrise; +2     ; * * * ; date >> /tmp/suncron.log
+sunrise; -2     ; * * 2 ; date >> /tmp/suncron.log
+sunrise; +2:35  ; 1 * * ; date >> /tmp/suncron.log
